@@ -138,7 +138,7 @@ module Moat
       end
 
       def permitted_through_filters(policy_class)
-        policy_instance = policy_class::Filter.new(public_send(role), policy_example_resource.class)
+        policy_instance = policy_class::Filter.new(public_send(role), policy_example_scope)
         policy_filters.select do |filter|
           policy_instance.public_send(filter).include?(policy_example_resource)
         end
@@ -160,8 +160,13 @@ module Moat
           alias_method :role, :roles
 
           def resource(&block)
-            fail ArgumentError, "#resource called without a block" if block.nil?
+            fail ArgumentError, "#{__method__} called without a block" unless block
             let(:policy_example_resource) { instance_eval(&block) }
+          end
+
+          def scope(&block)
+            fail ArgumentError, "#{__method__} called without a block" unless block
+            let(:policy_example_scope) { instance_eval(&block) }
           end
 
           def policy_filters(*filters)
@@ -186,6 +191,15 @@ module Moat
 
           let(:policy_example_resource) do
             fail NotImplementedError, "A resource has not been defined"
+          end
+
+          # a scope that contains at least the resource
+          let(:policy_example_scope) do
+            if policy_example_resource.class.respond_to?(:all)
+              policy_example_resource.class.all
+            else
+              [policy_example_resource]
+            end
           end
         end
       end

@@ -319,6 +319,14 @@ describe ThingPolicy do
 end
 ```
 
+If a non-standard scope is required for filters, it can be overridden. It
+defaults to the `all` relation for ActiveRecord models or a simple Array
+otherwise.
+
+```ruby
+scope { resource.container }
+```
+
 ## Ensure all policies have full test coverage
 
 ```ruby
