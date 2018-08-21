@@ -138,7 +138,7 @@ module Moat
       end
 
       def permitted_through_filters(policy_class)
-        policy_instance = policy_class::Filter.new(public_send(role), policy_example_resource.class.all)
+        policy_instance = policy_class::Filter.new(public_send(role), policy_example_resource.class)
         policy_filters.select do |filter|
           policy_instance.public_send(filter).include?(policy_example_resource)
         end
