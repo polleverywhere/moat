@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    moat (0.2)
+    moat (0.3)
 
 GEM
   remote: https://rubygems.org/
