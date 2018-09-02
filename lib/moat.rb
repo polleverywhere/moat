@@ -78,8 +78,6 @@ module Moat
       object.policy_class
     elsif object.class.respond_to?(:policy_class)
       object.class.policy_class
-    elsif object.respond_to?(:to_ary)
-      find_policy(object.to_ary.first)
     else
       infer_policy(object)
     end

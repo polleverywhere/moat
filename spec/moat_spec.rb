@@ -113,24 +113,25 @@ describe Moat do
     end
 
     it "fails if a corresponding action can't be found" do
-      expect { moat_consumer.policy_filter([1, 2, 3], :invalid_action) }.
+      expect { moat_consumer.policy_filter([1, 2, 3], :invalid_action, policy: IntegerPolicy) }.
         to raise_error(Moat::ActionNotFoundError, "IntegerPolicy::Filter#invalid_action")
     end
 
     it "returns the value of applying a policy scope filter to the original scope" do
-      expect(moat_consumer.policy_filter([1, 2, 3, 4, 5])).to eql([2, 4])
+      expect(moat_consumer.policy_filter([1, 2, 3, 4, 5], policy: IntegerPolicy)).to eql([2, 4])
     end
 
     it "uses specified action" do
-      expect(moat_consumer.policy_filter([2, 3], :show)).to eql([3])
+      expect(moat_consumer.policy_filter([2, 3], :show, policy: IntegerPolicy)).to eql([3])
     end
 
     it "uses specified policy" do
-      expect(moat_consumer.policy_filter([2, 3], policy: OtherIntegerPolicy)).to eql([3])
+      expect(moat_consumer.policy_filter([2, 3], policy: OtherIntegerPolicy)).
+        to eql([3])
     end
 
     it "uses specified user" do
-      expect(moat_consumer.policy_filter([2, 3], user: "specified user")).to eql([2, 3])
+      expect(moat_consumer.policy_filter([2, 3], user: "specified user", policy: IntegerPolicy)).to eql([2, 3])
     end
   end
 
@@ -148,7 +149,7 @@ describe Moat do
     end
 
     it "fails if a corresponding action can't be found" do
-      expect { moat_consumer.authorize([1, 2, 3], :invalid_action?) }.
+      expect { moat_consumer.authorize([1, 2, 3], :invalid_action?, policy: IntegerPolicy) }.
         to raise_error(Moat::ActionNotFoundError, "IntegerPolicy::Authorization#invalid_action?")
     end
 
@@ -183,7 +184,7 @@ describe Moat do
     end
     context "policy_filter called" do
       it "does not raise an exception" do
-        moat_consumer.policy_filter([1, 2])
+        moat_consumer.policy_filter([1, 2], policy: IntegerPolicy)
         expect { moat_consumer.verify_policy_applied }.not_to raise_error
       end
     end
@@ -280,7 +281,7 @@ describe Moat do
     end
 
     it "infers a policy from an object's `model` method" do
-      class DefinesModel
+      class DefinesModelName
         def self.model
           Fake
         end
@@ -289,25 +290,7 @@ describe Moat do
           [11, 12]
         end
       end
-      expect(moat_consumer.policy_filter(DefinesModel)).to eql([11, 12])
-    end
-
-    it "infers a policy from when scope is a non-Array that implements to_ary" do
-      class IntContainer
-        def initialize(*numbers)
-          @numbers = numbers
-        end
-
-        def to_ary
-          @numbers
-        end
-
-        def select
-          @numbers.select { |n| yield(n) }
-        end
-      end
-
-      expect(moat_consumer.policy_filter(IntContainer.new(1, 2, 3, 4, 5))).to eql([2, 4])
+      expect(moat_consumer.policy_filter(DefinesModelName)).to eql([11, 12])
     end
   end
 end
