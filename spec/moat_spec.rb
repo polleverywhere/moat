@@ -135,6 +135,45 @@ describe Moat do
     end
   end
 
+  describe "#authorized?" do
+    it "fails if resource is nil" do
+      expect { moat_consumer.authorized?(nil) }.
+        to raise_error(Moat::PolicyNotFoundError)
+    end
+
+    it "fails if a corresponding policy can't be found" do
+      expect { moat_consumer.authorized?(Hash) }.
+        to raise_error(Moat::PolicyNotFoundError, "Hash")
+      expect { moat_consumer.authorized?({}) }.
+        to raise_error(Moat::PolicyNotFoundError, "Hash")
+    end
+
+    it "fails if a corresponding action can't be found" do
+      expect { moat_consumer.authorized?([1, 2, 3], :invalid_action?, policy: IntegerPolicy) }.
+        to raise_error(Moat::ActionNotFoundError, "IntegerPolicy::Authorization#invalid_action?")
+    end
+
+    it "returns false when the value of calling the policy method is falsey" do
+      expect(moat_consumer.authorized?(3)). to be false
+    end
+
+    it "returns true when the value of calling the policy method is truthy" do
+      expect(moat_consumer.authorized?(4)).to be true
+    end
+
+    it "uses specified action" do
+      expect(moat_consumer.authorized?(3, :show?)).to be true
+    end
+
+    it "uses specified policy" do
+      expect(moat_consumer.authorized?(3, policy: OtherIntegerPolicy)).to be true
+    end
+
+    it "uses specified user" do
+      expect(moat_consumer.authorized?(3, user: "specified user")).to be true
+    end
+  end
+
   describe "#authorize" do
     it "fails if resource is nil" do
       expect { moat_consumer.authorize(nil) }.

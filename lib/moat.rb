@@ -39,8 +39,12 @@ module Moat
     apply_policy(scope, action, user: user, policy: policy::Filter)
   end
 
+  def authorized?(resource, action = "#{action_name}?", user: moat_user, policy: find_policy(resource))
+    !!apply_policy(resource, action, user: user, policy: policy::Authorization)
+  end
+
   def authorize(resource, action = "#{action_name}?", user: moat_user, policy: find_policy(resource))
-    if apply_policy(resource, action, user: user, policy: policy::Authorization)
+    if authorized?(resource, action, user: user, policy: policy)
       resource
     else
       fail NotAuthorizedError, action: action, resource: resource, policy: policy, user: user

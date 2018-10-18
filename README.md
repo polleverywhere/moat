@@ -174,11 +174,15 @@ end
 - `policy_filter(scope, action = action_name, user: moat_user, policy: <optional>)`
   - Called from controller actions or `before_action`s
   - Returns a `scope` with limitations according to `policy`
-  - Automagically looks up policy if not given
+  - Automagically tries to determine `policy` and `action` if not given
 - `authorize(resource, action = action_name, user: moat_user, policy: <optional>)`
-  - Called from controller actions or `before_action`s
-  - Raises `Moat::NotAuthorizedError` if `user` is not permitted to take `action` according to `policy`
-  - Automagically looks up policy if not given
+  - Called in controller methods
+  - Raises `Moat::NotAuthorizedError` if `user` is not permitted to take `action` on the resource according to `policy`
+  - Automagically tries to determine `policy` and `action` if not given
+- `authorized?(resource, action = action_name, user: moat_user, policy: <optional>)`
+  - Called in controller methods
+  - Returns `true` if `user` is permitted to take `action` on the resource according to `policy`, otherwise it returns `false`
+  - Automagically tries to determine `policy` and `action` if not given
 - `moat_user`
   - Returns `current_user` unless overridden
 - `verify_policy_applied`
@@ -188,8 +192,8 @@ end
 - `skip_verify_policy_applied`
   - Called from controller actions
   - Prevents `verify_policy_applied` from raising
-  - This removes an important fail-safe.
-  - Never use this without making it super clear to future developers why it is safe to call this method.
+  - This removes an important fail-safe
+  - Never use this without making it super clear to future developers why it is safe to call this method
 
 ## Conventions
 - A Moat `policy` is a PORO that is initialized with a user and a scope
