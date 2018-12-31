@@ -130,15 +130,19 @@ module Moat
         ::RSpec.current_example.metadata.fetch(:role)
       end
 
+      def current_role
+        public_send(role)
+      end
+
       def permitted_authorizations(policy_class)
-        policy_instance = policy_class::Authorization.new(public_send(role), policy_example_resource)
+        policy_instance = policy_class::Authorization.new(current_role, policy_example_resource)
         policy_authorizations.select do |authorization|
           policy_instance.public_send(authorization)
         end
       end
 
       def permitted_through_filters(policy_class)
-        policy_instance = policy_class::Filter.new(public_send(role), policy_example_scope)
+        policy_instance = policy_class::Filter.new(current_role, policy_example_scope)
         policy_filters.select do |filter|
           policy_instance.public_send(filter).include?(policy_example_resource)
         end

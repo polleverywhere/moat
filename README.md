@@ -323,13 +323,15 @@ describe ThingPolicy do
 end
 ```
 
-If a non-standard scope is required for filters, it can be overridden. It
-defaults to the `all` relation for ActiveRecord models or a simple Array
-otherwise.
+If a non-standard scope is required for filters, it can be overridden. It defaults to the `all` relation for ActiveRecord models or a simple Array otherwise.
 
 ```ruby
 scope { resource.container }
 ```
+
+The current role can be referenced with `current_role`, or `role` for just the role name as a symbol.
+
+When using `context` or `description` in combination with `roles`, we recommend that `roles` be the outermost nesting level. We've found that most of the time it's easier to maintain in the long term.
 
 ## Ensure all policies have full test coverage
 
