@@ -1,171 +1,119 @@
 # Moat
 
-Moat is an small authorization library built for Ruby (primarily Rails) web applications.
-Moat provides a small number of helpers and specific conventions for writing regular Ruby
-classes to handle authorizations.
+Moat is a minimalist authorization library for Ruby web applications. It is inspired by [Pundit](https://github.com/varvet/pundit).
 
+### Moat vs. Pundit: What's the difference?
+
+They are similar libraries, with an important distinction: Pundit is centered around authorizing individual resources, while Moat encourages filtering collections instead. The reasons for this are described below.
+
+### Moat vs. Pundit: Performance
+
+If you are working with a collection (index actions, bulk actions, nested attributes, etc.), authorizing one object at a time can easily lead to N+1 performance problems.
+[Pundit](https://github.com/varvet/pundit) does have scopes, but only one per policy. This is not sufficient for authorizing multiple types of actions that involve collections.
+
+### Moat vs. Pundit: Security
+
+Using scopes allows authorization to be applied before the sensitive data is loaded from the database. This is consistent with the Brakeman recommendation to not use an [Unscoped Find](https://brakemanscanner.org/docs/warning_types/unscoped_find/), also known as [Direct Object Reference](https://www.owasp.org/index.php/Top_10_2013-A4-Insecure_Direct_Object_References).
+
+```rb
+# Security risk: variable is populated with unauthorized data
+@thing = Thing.find_by!(id: params[:id])
+authorize(@thing)
+
+# More secure: data is never loaded from the database
+@thing = policy_filter(Thing).find_by!(id: params[:id])
+```
 
 ## Installation
 
-TODO: Document this once this library is extracted into a gem.
+```rb
+gem "moat"
+```
+
+Include Moat in your application controller:
+
+```rb
+class ApplicationController < ActionController::Base
+  include Moat
+  after_action :verify_policy_applied
+end
+```
 
 ## Policy Classes
 
-Moat borrows from [Pundit](https://github.com/varvet/pundit) the concept that all authorization is done through instantiated policy classes. Policy classes are simply classes for plain-ole-ruby-objects (POROs) that follow a specific convention for their interface so that Moat's helper methods can easily apply the proper authorization. Those interface conventions are:
+Moat borrows from [Pundit](https://github.com/varvet/pundit) the concept that all authorization is done through _policy classes_: plain-ole-ruby-objects (POROs) that follow certain conventions:
 
+- The name of the policy class is typically the name of a model class with the suffix "Policy". For example, `FooPolicy` contains the authorization rules for `Foo` models.
+- Within its namespace, a policy can contain `Filter` and `Authorization` classes to filter collections and invidual resources, respectively.
+- Public methods for `Authorization` classes should end in `?`.
+- Public methods for `Filter` classes typically match the name of the Rails controller action.
 
-- The name of the policy is generally the name of a model class with the suffix "Policy". For example, `ArticlePolicy` is the class used to describe authorization for `Article` models. Moat's helper methods will automatically look up the policy according to this convention, but you can override this lookup by passing a `policy:` argument with the class to use.
-- A policy will contain two classes within its namespace: `Filter` and `Authorization`.
-- The initializer of both `Filter` and `Authorization` takes a user object as the 1st argument.
-- The 2nd argument to `Filter` is a collection or scope. Usually this will be an ActiveRecord scope, but nothing in Moat requires this.
-- The 2nd argument to `Authorization` is a resource that has already been loaded from the database. Often this will be an ActiveRecord object.
-- The other public methods on both `Filter` and `Authorization` are called "action methods" and the helper methods use them to either apply a scope for a database query (`policy_filter`) or to check authorization for a loaded resource and return true if the user is authorized and false if they are not (`authorize`).
-- Action methods that authorize a loaded resource should have a `?` as the suffix to their name while scope methods are just the name of the action. While you can specify the action method to use for either helper, the convention is to look it up by calling the `action_name` method. (For Rails controllers, that will be the name of the controller action.)
+### Example
 
-Below is a small example of a policy class that implements the interfaces for an update action -- both the scope and the resource methods. Note: while this is sometimes necessary, we recommend using just one of these action methods and preferring the scope-based methods wherever possible.
-
-```ruby
+```rb
 class ArticlePolicy < ApplicationPolicy
   class Filter < Filter
-    def update
-      if user.account_admin?
-        scope.where(account_id: user.account_id)
-      else
-        scope.where(user_id: user.id)
-      end
-    end
-    alias_method :edit, :update
-  end
-
-  class Authorization < Authorization
-    # Best practice would be to use a Filter for this.
-    # This is here to show a more direct comparison to the Filter class.
-    def update?
-      if user.account_admin?
-        resource.account_id == user.account_id
-      else
-        resource.user_id == user.id
-      end
-    end
-    alias_method :edit?, :update?
-
-    # This is a more realistic example of an action method
-    # in an Authorization class. Since there are no existing
-    # objects being acted on, we _can't_ use a database query
-    # to scope this action to just records we are permitted to
-    # act upon.
-    def create?
-      # Be careful your controller doesn't override resource.account_id
-      # after this authorization check has been performed.
-      user.account_admin? && resource.account_id == user.account_id
-    end
-  end
-end
-
-# An ApplicationPolicy class is not necessary, but it can help keep
-# your policies DRY
-class ApplicationPolicy
-  class Filter
     def initialize(user, scope)
       @user = user
       @scope = scope
     end
 
+    def update
+      if !user
+        scope.none
+      elsif user.admin?
+        scope.all
+      else
+        scope.where(user_id: user.id)
+      end
+    end
+
     private
 
     attr_reader :user, :scope
-
-    def account
-      @account ||= user&.account
-    end
   end
 
-  class Authorization
+  class Authorization < Authorization
     def initialize(user, resource)
       @user = user
       @resource = resource
     end
 
+    def create?
+      user
+    end
+
     private
 
     attr_reader :user, :resource
-
-    def account
-      @account ||= user&.account
-    end
   end
 end
-```
 
-
-Here are two example controllers — one that uses resource methods and one that uses scope methods. Generally `policy_filter` is preferred over `authorize`. Only use `authorize` when you cannot use a `Filter`  to prevent loading objects that the user may not be authorized to access.
-
-```ruby
 class ApplicationController < ActionController::Base
   include Moat
-  include MoatVerification
+  after_action :verify_policy_applied
 end
 
-class ArticleResourceController < ApplicationController
-  before_action :load_article, only: [:edit, :update]
-  before_action :load_new_article, only: [:new, :create]
-
-  def edit
-  end
-
-  def update
-    @article.update(article_params)
-    redirect_to article_path(@article)
-  end
+class ArticlesController < ApplicationController
+  before_action :load_article, only: [:update]
 
   def create
-    @article.save!
-  end
-
-  private
-
-  def load_article
-    # This is not recommended. It is shown for comparison
-    # to the scope based approach.
-    # See below about avoiding Direct Object References
-    @article = Article.find(params[:id])
-    authorize(article)
-  end
-
-  def load_new_article
-    # This is a good example of using a authorize because there is
-    # no collection to authorize against as it is a new record.
-    @article = Article.new(account_id: current_user.account_id)
-    authorize(@article)
-  end
-end
-
-class ArticleScopeController < ApplicationController
-  before_action :load_article, only: [:edit, :update]
-
-  def index
-    # policy_filter is always the better option for an index action.
-    # The controller should handle filters motivated by:
-    # - The user's preferences;
-    # - UI concerns; and
-    # - Performance concerns.
-    # The Policy should only handle filters required by authorization rules.
-    @articles = policy_filter(Article.search(params[:search])).limit(10)
-  end
-
-  def edit
+    authorize(Article)
+    @article = current_user.articles.create!(article_params)
   end
 
   def update
-    @article.update(article_params)
-    redirect_to article_path(@article)
+    @article.update!(article_params)
   end
 
   private
 
   def load_article
-    # This is the preferred method of loading a record from the database.
-    @article = policy_filter(Article).find(params[:id])
+    @article = policy_filter(Article).find_by!(id: params[:id])
+  end
+
+  def article_params
+    params.require(:article).permit(:title, :body)
   end
 end
 ```
@@ -208,86 +156,9 @@ end
 - Moat policy methods that do not end in `?`
   - Example: `AccountPolicy#update?` should return `true` only if a user is an administrator in the account.
 
-
-
-## Pundit comparison
-
-Moat borrows from [Pundit](https://github.com/varvet/pundit) the concept that all authorization is done through instantiated policy classes that are plain-ole-ruby-objects (POROs) that follow a specific convention for their interface.
-
-Unlike [Pundit](https://github.com/varvet/pundit), Moat is focused on scope-based authorization yet easily allows for resource-based authorization within the same policy. This means we are primarily concerned with applying authorization by limiting your database queries to only return rows the specified user has access to.
-
-
-### Why scope-based authorization?
-
-#### Performance
-If you are working with a collection (index actions, bulk actions, nested attributes, etc.), authorizing one object at a time can easily lead to N+1 performance problems.
-[Pundit](https://github.com/varvet/pundit) does have support for scopes, but is only designed to have a single scope per policy, typically intended for `index` actions. However, listing objects is not the only action that involves a collection.
-
-#### DRY
-Using ActiveRecord scopes for authorization also works well.
-Even if you are only loading one object, you can use the scope and just add `find` or `find_by` afterwards.
-
-```ruby
-def show
-  @thing = policy_filter(Thing).find_by(id: params[:id])
-end
-```
-
-#### Authorize early
-Using scopes allows authorization to be applied before the sensitive data is even loaded out of the database.
-
-This is consistent with the Brakeman recommendation to not use an [Unscoped Find](https://brakemanscanner.org/docs/warning_types/unscoped_find/), also known as [Direct Object Reference](https://www.owasp.org/index.php/Top_10_2013-A4-Insecure_Direct_Object_References).
-
-```ruby
-def show
-  @thing = authorize(Thing.find(params[:id]))
-end
-
-def show
-  @thing = policy_filter(Thing).find(params[:id])
-end
-```
-
-#### 404 vs 403 vs. 401
-Using scopes can make this a little bit more challenging, but only in a simplistic case.
-
-There are really two questions:
-
-- Are you authorized to know whether or not this resource exists? If not, 404 is the best response code.
-- Are you authorized to perform this action?
-
-```ruby
-# Without scope.
-# Returns 404 if the object does not exist.
-# Returns 403 if the object exists and you are not authorized to destroy it.
-# Implicitly allows everyone to know whether or not the object exists.
-def destroy
-  @thing = authorize(Thing.find(params[:id]))
-  @thing.destroy!
-end
-
-# With scope
-# Returns 404 if the resource doesn't exist OR if you aren't authorized to destroy it.
-# Implies that if you don't have permission to destroy the object then you also
-# don't have permission to know whether or not the object exists.
-def destroy
-  @thing = policy_filter(Thing).find(params[:id])
-  @thing.destroy!
-end
-
-# Complex/combined scenario
-# Returns 404 if you don't have permission to know whether or not the resource exists.
-# Returns 403 if you can know it exists, but don't have permission to destroy.
-def destroy
-  @thing = authorize(policy_filter(Thing, :read).find_by(id: params[:id]))
-  @thing.destroy!
-end
-```
-
-
 ## Rspec matchers
 
-```ruby
+```rb
 require "moat/rspec"
 
 describe ThingPolicy do
@@ -503,7 +374,7 @@ end
          accounts_things
        end
        def update
-         (account_admin? && account_things) || users_things
+         (admin? && account_things) || users_things
        end
 
        private
