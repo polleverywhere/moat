@@ -3,13 +3,11 @@ module Moat
     module PolicyMatchers
       extend ::RSpec::Matchers::DSL
 
-      matcher :permit_all_authorizations do
+      matcher :permit_all_authorizations do |opts|
+        exceptions = Array(opts.fetch(:except, []))
+
         match do |policy_class|
-          @incorrectly_denied = policy_authorizations - permitted_authorizations(policy_class)
-          @incorrectly_denied.empty?
-        end
-        failure_message do
-          generate_failure_message(incorrectly_denied: @incorrectly_denied)
+          expect(policy_class).to only_permit_authorizations(policy_authorizations - permitted_authorizations(policy_class))
         end
 
         match_when_negated do
@@ -59,13 +57,11 @@ module Moat
         end
       end
 
-      matcher :permit_through_all_filters do
+      matcher :permit_through_all_filters do |opts|
+        exceptions = Array(opts.fetch(:exceptions, []))
+
         match do |policy_class|
-          @incorrectly_denied = policy_filters - permitted_through_filters(policy_class)
-          @incorrectly_denied.empty?
-        end
-        failure_message do
-          generate_failure_message(incorrectly_denied: @incorrectly_denied)
+          expect(policy_class).to only_permit_through_filters(policy_filters - exceptions)
         end
 
         match_when_negated do
