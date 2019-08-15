@@ -1,17 +1,25 @@
 # Moat
 
-Moat is a minimalist authorization library for Ruby web applications. It is inspired by [Pundit](https://github.com/varvet/pundit).
+Moat is a minimalist authorization library for Ruby web applications. It is inspired by [Pundit](https://github.com/varvet/pundit). It is used today in production by Poll Everywhere and has been praised for its auditability and testability by security audit firms. Moat features:
 
-### Moat vs. Pundit: What's the difference?
+* Scope-first approach to resource authorization.
+* Runtime assertions in the controller to blow up if a resource is *not* authorized.
+* RSpec matchers that make testing easy and fun for engineers, auditable by security auditing firms, and readable by non-technical people.
+* Plain' ol' Ruby objects (PORO) for better extensibility and to be more understandable to Ruby developers who have to dig into the guts of Moat.
+
+## Moat vs. Pundit
+
+First, Pundit is awesome. We wrote this comparison to help us better understand if we should use Pundit or build this library. We found the differences compelling enough to build Moat, and maybe you too.
+
+### What's the difference?
 
 They are similar libraries, with an important distinction: Pundit is centered around authorizing individual resources, while Moat encourages filtering collections instead. The reasons for this are described below.
 
-### Moat vs. Pundit: Performance
+### Performance
 
-If you are working with a collection (index actions, bulk actions, nested attributes, etc.), authorizing one object at a time can easily lead to N+1 performance problems.
-[Pundit](https://github.com/varvet/pundit) does have scopes, but only one per policy. This is not sufficient for authorizing multiple types of actions that involve collections.
+If you are working with a collection (index actions, bulk actions, nested attributes, etc.), authorizing one object at a time can easily lead to N+1 performance problems. [Pundit](https://github.com/varvet/pundit) does have scopes, but only one per policy. This is not sufficient for authorizing multiple types of actions that involve collections.
 
-### Moat vs. Pundit: Security
+### Security
 
 Using scopes allows authorization to be applied before the sensitive data is loaded from the database. This is consistent with the Brakeman recommendation to not use an [Unscoped Find](https://brakemanscanner.org/docs/warning_types/unscoped_find/), also known as [Direct Object Reference](https://www.owasp.org/index.php/Top_10_2013-A4-Insecure_Direct_Object_References).
 
@@ -119,42 +127,54 @@ end
 ```
 
 ## API
-- `policy_filter(scope, action = action_name, user: moat_user, policy: <optional>)`
-  - Called from controller actions or `before_action`s
-  - Returns a `scope` with limitations according to `policy`
-  - Automagically tries to determine `policy` and `action` if not given
-- `authorize(resource, action = action_name, user: moat_user, policy: <optional>)`
-  - Called in controller methods
-  - Raises `Moat::NotAuthorizedError` if `user` is not permitted to take `action` on the resource according to `policy`
-  - Automagically tries to determine `policy` and `action` if not given
-- `authorized?(resource, action = action_name, user: moat_user, policy: <optional>)`
-  - Called in controller methods
-  - Returns `true` if `user` is permitted to take `action` on the resource according to `policy`, otherwise it returns `false`
-  - Automagically tries to determine `policy` and `action` if not given
-- `moat_user`
-  - Returns `current_user` unless overridden
-- `verify_policy_applied`
-  - For use as `after_action`
-  - Raises `Moat::PolicyNotAppliedError` unless `authorize` or `policy_filter` has been called
-  - Using this is highly recommended as a fail safe. However, it is not a replacement for good tests. Sometimes a controller action will need to authorize multiple scopes or resources. This verifies that a policy was applied at least once. It does not verify that a policy was applied to every resource referenced in your controller action.
-- `skip_verify_policy_applied`
-  - Called from controller actions
-  - Prevents `verify_policy_applied` from raising
-  - This removes an important fail-safe
-  - Never use this without making it super clear to future developers why it is safe to call this method
+
+`policy_filter(scope, action = action_name, user: moat_user, policy: <optional>)`
+
+- Called from controller actions or `before_action`s
+- Returns a `scope` with limitations according to `policy`
+- Automagically tries to determine `policy` and `action` if not given
+
+`authorize(resource, action = action_name, user: moat_user, policy: <optional>)`
+- Called in controller methods
+- Raises `Moat::NotAuthorizedError` if `user` is not permitted to take `action` on the resource according to `policy`
+- Automagically tries to determine `policy` and `action` if not given
+
+`authorized?(resource, action = action_name, user: moat_user, policy: <optional>)`
+- Called in controller methods
+- Returns `true` if `user` is permitted to take `action` on the resource according to `policy`, otherwise it returns `false`
+- Automagically tries to determine `policy` and `action` if not given
+
+`moat_user`
+- Returns `current_user` unless overridden
+
+`verify_policy_applied`
+- For use as `after_action`
+- Raises `Moat::PolicyNotAppliedError` unless `authorize` or `policy_filter` has been called
+- Using this is highly recommended as a fail safe. However, it is not a replacement for good tests. Sometimes a controller action will need to authorize multiple scopes or resources. This verifies that a policy was applied at least once. It does not verify that a policy was applied to every resource referenced in your controller action.
+
+`skip_verify_policy_applied`
+- Called from controller actions
+- Prevents `verify_policy_applied` from raising
+- This removes an important fail-safe
+- Never use this without making it super clear to future developers why it is safe to call this method
 
 ## Conventions
-- A Moat `policy` is a PORO that is initialized with a user and a scope
-  - Moat policies live in `app/policies` and are named after a resource suffixed with `Policy`
-  - Example: `AccountPolicy` represents the authorization logic for an `Account` and lives in `app/policies/account_policy.rb`
-- A `scope` is an Enumerable object representing a set of resources
-  - In a Rails app, this is almost always an `ActiveRecord::Relation`
-  - If you are not using an `ActiveRecord::Relation` you should document your policy very clearly. Properly using the interface between your policies and your controllers is essential for maintaining security.
-- Action methods for `Filter` classes should not end with `?`. If the user is not authorized for anything, then an empty collection/scope should be returned. Otherwise they should return a scope limited to the records the user has access to for the corresponding action.
-  - Example:  `AccountPolicy#update` should return the scope of all accounts the user has permission to update.
-- Action methods for `Authorization` classes should end with `?`. If the return value is `true` (truthy) then the user is authorized to take the specified action on the resource.
-- Moat policy methods that do not end in `?`
-  - Example: `AccountPolicy#update?` should return `true` only if a user is an administrator in the account.
+
+A Moat `policy` is a PORO that is initialized with a user and a scope
+- Moat policies live in `app/policies` and are named after a resource suffixed with `Policy`
+- Example: `AccountPolicy` represents the authorization logic for an `Account` and lives in `app/policies/account_policy.rb`
+
+A `scope` is an Enumerable object representing a set of resources
+- In a Rails app, this is almost always an `ActiveRecord::Relation`
+- If you are not using an `ActiveRecord::Relation` you should document your policy very clearly. Properly using the interface between your policies and your controllers is essential for maintaining security.
+
+Action methods for `Filter` classes should not end with `?`. If the user is not authorized for anything, then an empty collection/scope should be returned. Otherwise they should return a scope limited to the records the user has access to for the corresponding action.
+Example:  `AccountPolicy#update` should return the scope of all accounts the user has permission to update.
+
+Action methods for `Authorization` classes should end with `?`. If the return value is `true` (truthy) then the user is authorized to take the specified action on the resource.
+Moat policy methods that do not end in `?`
+
+Example: `AccountPolicy#update?` should return `true` only if a user is an administrator in the account.
 
 ## Rspec matchers
 
@@ -253,11 +273,7 @@ end
 
 ## Best Practices
 
-1. The controller should handle filters motivated by:
-
-   - The user's preferences;
-   - UI concerns; and
-   - Performance concerns.
+1. The controller should handle filters motivated by the user's preferences, UI concerns; and performance concerns.
 
 1. The Policy should only handle filters required by authorization rules.
 
