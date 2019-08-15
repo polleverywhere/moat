@@ -1,11 +1,13 @@
 # Moat
 
-Moat is a minimalist authorization library for Ruby web applications. It is inspired by [Pundit](https://github.com/varvet/pundit). It is used today in production by Poll Everywhere and has been praised for its auditability and testability by security audit firms. Moat features:
+Moat is a minimalist authorization library for Ruby web applications, inspired by [Pundit](https://github.com/varvet/pundit). It is used today in production by Poll Everywhere and has been praised for its auditability and testability by security audit firms.
 
-* Scope-first approach to resource authorization.
-* Runtime assertions in the controller to blow up if a resource is *not* authorized.
-* RSpec matchers that make testing easy and fun for engineers, auditable by security auditing firms, and readable by non-technical people.
-* Plain' ol' Ruby objects (PORO) for better extensibility and to be more understandable to Ruby developers who have to dig into the guts of Moat.
+Moat features:
+
+* Scope-first approach to resource authorization
+* Runtime assertions in the controller throw an exception if a resource is *not* authorized for fail safety
+* RSpec matchers that make testing easy and fun for engineers, auditable by security auditing firms, and readable by non-technical people
+* Plain' ol' Ruby objects (PORO) for better extensibility and to be more understandable to Ruby developers who have to dig into the guts of Moat
 
 ## Moat vs. Pundit
 
