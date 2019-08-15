@@ -5,7 +5,7 @@ Moat is a minimalist authorization library for Ruby web applications, inspired b
 Moat features:
 
 * Scope-first approach to resource authorization
-* Runtime assertions in the controller throw an exception if a resource is *not* authorized for fail safety
+* Fail-safe runtime assertions in the controller throw an exception if a Moat does *not* authorize a resource during a request
 * RSpec matchers that make testing easy and fun for engineers, auditable by security auditing firms, and readable by non-technical people
 * Plain' ol' Ruby objects (PORO) for better extensibility and to be more understandable to Ruby developers who have to dig into the guts of Moat
 
