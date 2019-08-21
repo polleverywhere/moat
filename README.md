@@ -1,6 +1,6 @@
 # Moat
 
-[![Maintainability](https://api.codeclimate.com/v1/badges/aad9ca9ac1ba5cc532e0/maintainability)](https://codeclimate.com/github/polleverywhere/moat/maintainability)
+[![Gem Version](https://badge.fury.io/rb/moat.svg)](https://badge.fury.io/rb/moat) [![CircleCI](https://circleci.com/gh/polleverywhere/moat.svg?style=svg)](https://circleci.com/gh/polleverywhere/moat) [![Maintainability](https://api.codeclimate.com/v1/badges/aad9ca9ac1ba5cc532e0/maintainability)](https://codeclimate.com/github/polleverywhere/moat/maintainability)
 
 Moat is a minimalist authorization library for Ruby web applications, inspired by [Pundit](https://github.com/varvet/pundit). It is used today in production by Poll Everywhere and has been praised for its auditability and testability by security audit firms.
 
