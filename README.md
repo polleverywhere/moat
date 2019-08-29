@@ -10,6 +10,7 @@ Moat features:
 * Fail-safe runtime assertions in the controller throw an exception if a Moat does *not* authorize a resource during a request
 * RSpec matchers that make testing easy and fun for engineers, auditable by security auditing firms, and readable by non-technical people
 * Plain' ol' Ruby objects (PORO) for better extensibility and to be more understandable to Ruby developers who have to dig into the guts of Moat
+* No runtime dependencies keeps bundle installs snappy and working well outside of Rails projects
 
 ## Moat vs. Pundit
 
@@ -35,6 +36,12 @@ authorize(@thing)
 # More secure: data is never loaded from the database
 @thing = policy_filter(Thing).find_by!(id: params[:id])
 ```
+
+### Dependencies
+
+Pundit has a runtime dependency on ActiveSupport, which can add a lot of heft to projects that don't use Rails.
+
+Moat has 0 runtime dependencies making it a tad lighter weight when used with Sinatra or any other non-Rails environments.
 
 ## Installation
 
